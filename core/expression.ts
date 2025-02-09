@@ -1,10 +1,33 @@
-type Term = {
+const operators = {
+  '+': {
+    precedence: 1
+  },
+  '-': {
+    precedence: 1
+  },
+  '*': {
+    precedence: 2
+  },
+  '/': {
+    precedence: 2
+  }
+} as const satisfies {
+  [key: string]: {
+    precedence: number
+  }
+}
+
+type OperandTerm = {
   type: 'operand'
   value: number
-} | {
-  type: 'operator'
-  subtype: '+' | '-' | '*' | '/'
 }
+
+type OperatorTerm = {
+  type: 'operator'
+  subtype: keyof typeof operators  
+}
+
+type Term = OperandTerm | OperatorTerm
 
 export class Expression {
   constructor(public terms: Term[]) {
@@ -28,8 +51,8 @@ export class Expression {
         continue
       }
 
-      if (remaining[0] === '+' || remaining[0] === '-' || remaining[0] === '*' || remaining[0] === '/') {
-        terms.push({ type: 'operator', subtype: remaining[0] })
+      if (remaining[0] in operators) {
+        terms.push({ type: 'operator', subtype: remaining[0] as keyof typeof operators })
         remaining = remaining.slice(1)
         continue
       }
@@ -50,25 +73,60 @@ export class Expression {
     }).join(' ')
   }
 
-  solve() {
-    let result = 0
-    let currentOperator = '+'
-    for (const term of this.terms) {
-      if (term.type === 'operand') {
-        if (currentOperator === '+') {
-          result += term.value
-        } else if (currentOperator === '-') {
-          result -= term.value
-        } else if (currentOperator === '*') {
-          result *= term.value
-        } else if (currentOperator === '/') {
-          result /= term.value
-        }
+  private determineHighestPrecedence() {
+    const precedences = this.terms.map(term => {
+      if (term.type === 'operator') {
+        return operators[term.subtype].precedence
       } else {
-        currentOperator = term.subtype
+        return 0
       }
-    }
+    })
+    const highestPrecedence = Math.max(...precedences)
+    return highestPrecedence
+  }
 
-    return result
+  solve() {
+    while (true){
+      const highestPrecedence = this.determineHighestPrecedence()
+
+      if (highestPrecedence === 0) break
+
+      const operatorIndex = this.terms.findIndex(term => {
+        if (term.type === 'operator') {
+          return operators[term.subtype].precedence === highestPrecedence
+        } else {
+          return false
+        }
+      })
+      if (operatorIndex === -1) throw new Error('Expected operator')
+        
+      const leftOperand = this.terms[operatorIndex - 1]
+      const operator = this.terms[operatorIndex]
+      const rightOperand = this.terms[operatorIndex + 1]
+
+      if (
+        leftOperand.type !== 'operand' ||
+        operator.type !== 'operator' || 
+        rightOperand.type !== 'operand'
+      ) throw new Error('Invalid Expression')
+
+      let result: number
+      if (operator.subtype === '+') {
+        result = leftOperand.value + rightOperand.value
+      } else if (operator.subtype === '-') {
+        result = leftOperand.value - rightOperand.value
+      } else if (operator.subtype === '*') {
+        result = leftOperand.value * rightOperand.value
+      } else if (operator.subtype === '/') {
+        result = leftOperand.value / rightOperand.value
+      } else {
+        throw new Error('Unexpected operator')
+      }
+
+      this.terms.splice(operatorIndex - 1, 3, { type: 'operand', value: result })
+    }
+    const remainingTerm = this.terms[0]
+    if (remainingTerm.type !== 'operand') throw new Error('Invalid Expression')
+    return remainingTerm.value
   }
 }
