@@ -42,4 +42,29 @@ describe('Expression solver', () => {
     
     expect(expression.solve().toNumber()).toBe(9.54)
   })
+
+  it('should solve 3^2 correctly', () => {
+    const expression = Expression.fromString('3^2')
+    expect(expression.solve().toNumber()).toBe(9)
+  })
+
+  it('should solve 2^3 correctly', () => {
+    const expression = Expression.fromString('2^3')
+    expect(expression.solve().toNumber()).toBe(8)
+  })
+
+  it('should solve 3√8 correctly ', () => {
+    const expression = Expression.fromString('3√8')
+    expect(expression.solve().toNumber()).toBe(2)
+  })
+
+  it('should solve 2√9 correctly ', () => {
+    const expression = Expression.fromString('2√9')
+    expect(expression.solve().toNumber()).toBe(3)
+  })
+
+  it('should solve √9 correctly ', () => {
+    const expression = Expression.fromString('√9')
+    expect(expression.solve().toNumber()).toBe(3)
+  })
 })

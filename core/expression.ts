@@ -12,6 +12,12 @@ const operators = {
   },
   '/': {
     precedence: 2
+  },
+  '^': {
+    precedence: 3
+  },
+  '√': {
+    precedence: 3
   }
 } as const satisfies {
   [key: string]: {
@@ -19,17 +25,15 @@ const operators = {
   }
 }
 
-type OperandTerm = {
-  type: 'operand'
-  value: RationalNumber
+type Term = RationalNumber | keyof typeof operators 
+
+function isOperator(input: unknown): input is keyof typeof operators {
+  return typeof input === 'string' && input in operators
 }
 
-type OperatorTerm = {
-  type: 'operator'
-  subtype: keyof typeof operators  
+function isOperand(input: unknown): input is RationalNumber {
+  return input instanceof RationalNumber
 }
-
-type Term = OperandTerm | OperatorTerm
 
 export class Expression {
   constructor(public terms: Term[]) {
@@ -48,16 +52,20 @@ export class Expression {
 
       const operandMatch = remaining.match(/^\d+(\.\d+)?/)
       if (operandMatch) {
-        terms.push({
-          type: 'operand',
-          value: RationalNumber.fromFloatString(operandMatch[0])
-        })
+        terms.push(RationalNumber.fromFloatString(operandMatch[0]))
         remaining = remaining.slice(operandMatch[0].length)
         continue
       }
 
-      if (remaining[0] in operators) {
-        terms.push({ type: 'operator', subtype: remaining[0] as keyof typeof operators })
+      if (remaining[0] === '√' && !isOperand(terms.at(-1))) {
+        terms.push(RationalNumber.fromInteger(2))
+        terms.push('√')
+        remaining = remaining.slice(1)
+        continue
+      }
+
+      if (isOperator(remaining[0])) {
+        terms.push(remaining[0])
         remaining = remaining.slice(1)
         continue
       }
@@ -70,18 +78,18 @@ export class Expression {
 
   toString() {
     return this.terms.map(term => {
-      if (term.type === 'operand') {
-        return term.value.toString()
+      if (isOperator(term)){
+        return term
       } else {
-        return term.subtype
+        return term.toString() 
       }
     }).join(' ')
   }
 
   private determineHighestPrecedence() {
     const precedences = this.terms.map(term => {
-      if (term.type === 'operator') {
-        return operators[term.subtype].precedence
+      if (isOperator(term)) {
+        return operators[term].precedence
       } else {
         return 0
       }
@@ -97,8 +105,8 @@ export class Expression {
       if (highestPrecedence === 0) break
 
       const operatorIndex = this.terms.findIndex(term => {
-        if (term.type === 'operator') {
-          return operators[term.subtype].precedence === highestPrecedence
+        if (isOperator(term)) {
+          return operators[term].precedence === highestPrecedence
         } else {
           return false
         }
@@ -110,28 +118,38 @@ export class Expression {
       const rightOperand = this.terms[operatorIndex + 1]
 
       if (
-        leftOperand.type !== 'operand' ||
-        operator.type !== 'operator' || 
-        rightOperand.type !== 'operand'
+        !isOperand(leftOperand) ||
+        !isOperator(operator) || 
+        !isOperand(rightOperand)
       ) throw new Error('Invalid Expression')
 
       let result: RationalNumber
-      if (operator.subtype === '+') {
-        result = leftOperand.value.add(rightOperand.value)
-      } else if (operator.subtype === '-') {
-        result = leftOperand.value.subtract(rightOperand.value)
-      } else if (operator.subtype === '*') {
-        result = leftOperand.value.multiply(rightOperand.value)
-      } else if (operator.subtype === '/') {
-        result = leftOperand.value.divide(rightOperand.value)
-      } else {
-        throw new Error('Unexpected operator')
+      switch (operator) {
+        case '+':
+          result = leftOperand.add(rightOperand)
+          break
+        case '-':
+          result = leftOperand.subtract(rightOperand)
+          break
+        case '*':
+          result = leftOperand.multiply(rightOperand)
+          break
+        case '/':
+          result = leftOperand.divide(rightOperand)
+          break
+        case '^':
+          result = leftOperand.pow(rightOperand)
+          break
+        case '√':
+          result = rightOperand.root(leftOperand)
+          break      
       }
 
-      this.terms.splice(operatorIndex - 1, 3, { type: 'operand', value: result })
+      this.terms.splice(operatorIndex - 1, 3, result)
     }
+
     const remainingTerm = this.terms[0]
-    if (remainingTerm.type !== 'operand') throw new Error('Invalid Expression')
-    return remainingTerm.value
+    if (!isOperand(remainingTerm)) throw new Error('Invalid Expression')
+    return remainingTerm
   }
 }

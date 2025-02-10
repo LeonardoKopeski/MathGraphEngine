@@ -3,10 +3,25 @@
  * precise number operations.
  */
 export class RationalNumber{
-  public divisor: number
-  public dividend: number
+  private constructor(public readonly dividend: number, public readonly divisor: number) {}
 
-  constructor(dividend: number, divisor: number) {
+  get reciprocal() {
+    return new RationalNumber(this.divisor, this.dividend)
+  }
+
+  get inverse(){
+    return new RationalNumber(-this.dividend, this.divisor)
+  }
+
+  static fromInteger(value: number) {
+    if (!Number.isInteger(value)) {
+      throw new Error('How dare you invoke "fromInteger" with a non-integer value?')
+    }
+
+    return new RationalNumber(value, 1)
+  }
+
+  static generateReducedFraction(dividend: number, divisor: number) {
     if (divisor === 0) {
       throw new Error('Cannot divide by zero')
     }
@@ -15,9 +30,10 @@ export class RationalNumber{
     }
 
     const gcdValue = gcd(dividend, divisor)
-
-    this.dividend = dividend / gcdValue
-    this.divisor = divisor / gcdValue
+    return new RationalNumber(
+      dividend / gcdValue,
+      divisor / gcdValue
+    )
   }
 
   static fromFloatString(str: string) {
@@ -29,7 +45,7 @@ export class RationalNumber{
     const [integerPart, decimalPart] = str.split('.')
     const dividend = parseInt(integerPart + decimalPart)
     const divisor = Math.pow(10, decimalPart.length)
-    return new RationalNumber(dividend, divisor)
+    return RationalNumber.generateReducedFraction(dividend, divisor)
   }
 
   toString() {
@@ -42,31 +58,37 @@ export class RationalNumber{
   }
 
   add(other: RationalNumber) {
-    return new RationalNumber(
+    return RationalNumber.generateReducedFraction(
       this.dividend * other.divisor + other.dividend * this.divisor,
       this.divisor * other.divisor
     )
   }
 
   subtract(other: RationalNumber) {
-    return new RationalNumber(
-      this.dividend * other.divisor - other.dividend * this.divisor,
-      this.divisor * other.divisor
-    )
+    return this.add(other.inverse)
   }
 
   multiply(other: RationalNumber) {
-    return new RationalNumber(
+    return RationalNumber.generateReducedFraction(
       this.dividend * other.dividend,
       this.divisor * other.divisor
     )
   }
 
   divide(other: RationalNumber) {
-    return new RationalNumber(
-      this.dividend * other.divisor,
-      this.divisor * other.dividend
+    return this.multiply(other.reciprocal)
+  }
+
+  pow(other: RationalNumber) {
+    const exponent = other.toNumber()
+    return RationalNumber.generateReducedFraction(
+      this.dividend ** exponent,
+      this.divisor ** exponent
     )
+  }
+
+  root(other: RationalNumber) {
+    return this.pow(other.reciprocal)
   }
 }
 
