@@ -32,6 +32,16 @@ describe('Expression solver', () => {
     expect(expression.solve().toNumber()).toBe(7)
   })
 
+  it('should solve (1 + 2) * 3 correctly', () => {
+    const expression = Expression.fromString('(1 + 2) * 3')
+    expect(expression.solve().toNumber()).toBe(9)
+  })
+
+  it('should solve ((1 + 2) * 3) - 4 correctly', () => {
+    const expression = Expression.fromString('((1 + 2) * 3) - 4')
+    expect(expression.solve().toNumber()).toBe(5)
+  })
+
   it('should solve 10 / 2 - 3 correctly', () => {
     const expression = Expression.fromString('10 / 2 - 3')
     expect(expression.solve().toNumber()).toBe(2)

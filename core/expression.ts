@@ -25,7 +25,7 @@ const operators = {
   }
 }
 
-type Term = RationalNumber | keyof typeof operators 
+type Term = RationalNumber | keyof typeof operators | Expression
 
 function isOperator(input: unknown): input is keyof typeof operators {
   return typeof input === 'string' && input in operators
@@ -33,6 +33,10 @@ function isOperator(input: unknown): input is keyof typeof operators {
 
 function isOperand(input: unknown): input is RationalNumber {
   return input instanceof RationalNumber
+}
+
+function isOperation(input: unknown): input is Expression {
+  return input instanceof Expression
 }
 
 export class Expression {
@@ -69,6 +73,13 @@ export class Expression {
         remaining = remaining.slice(1)
         continue
       }
+
+      const parentesisMatch = remaining.match(/^\((.*)\)/)
+      if (parentesisMatch) {
+        terms.push(Expression.fromString(parentesisMatch[1]))
+        remaining = remaining.slice(parentesisMatch[0].length)
+        continue
+      }
       
       throw new Error(`Unexpected character: "${remaining[0]}"`)
     }
@@ -76,7 +87,7 @@ export class Expression {
     return new Expression(terms)
   }
 
-  toString() {
+  toString(): string {
     return this.terms.map(term => {
       if (isOperator(term)){
         return term
@@ -87,65 +98,67 @@ export class Expression {
   }
 
   private determineHighestPrecedence() {
-    const precedences = this.terms.map(term => {
+    const precedences = this.terms.map((term, index) => {
       if (isOperator(term)) {
-        return operators[term].precedence
+        return [index, operators[term].precedence]
+      } else if (isOperation(term)) {
+        return [index, Infinity]
       } else {
-        return 0
+        return [index, 0]
       }
     })
-    const highestPrecedence = Math.max(...precedences)
-    return highestPrecedence
+    const highestPrecedence = Math.max(...precedences.map(([, precedence]) => precedence))
+    return {
+      highestPrecedence,
+      highestPrecedenceIndex: precedences.find(([, precedence]) => precedence === highestPrecedence)![0]
+    }
   }
 
   solve() {
     while (true){
-      const highestPrecedence = this.determineHighestPrecedence()
+      const {highestPrecedence, highestPrecedenceIndex} = this.determineHighestPrecedence()
 
       if (highestPrecedence === 0) break
-
-      const operatorIndex = this.terms.findIndex(term => {
-        if (isOperator(term)) {
-          return operators[term].precedence === highestPrecedence
-        } else {
-          return false
-        }
-      })
-      if (operatorIndex === -1) throw new Error('Expected operator')
         
-      const leftOperand = this.terms[operatorIndex - 1]
-      const operator = this.terms[operatorIndex]
-      const rightOperand = this.terms[operatorIndex + 1]
-
-      if (
-        !isOperand(leftOperand) ||
-        !isOperator(operator) || 
-        !isOperand(rightOperand)
-      ) throw new Error('Invalid Expression')
+      const highestPrecedenceElement = this.terms[highestPrecedenceIndex]
 
       let result: RationalNumber
-      switch (operator) {
-        case '+':
-          result = leftOperand.add(rightOperand)
-          break
-        case '-':
-          result = leftOperand.subtract(rightOperand)
-          break
-        case '*':
-          result = leftOperand.multiply(rightOperand)
-          break
-        case '/':
-          result = leftOperand.divide(rightOperand)
-          break
-        case '^':
-          result = leftOperand.pow(rightOperand)
-          break
-        case '√':
-          result = rightOperand.root(leftOperand)
-          break      
+      if (isOperation(highestPrecedenceElement)) {
+        result = highestPrecedenceElement.solve()
+        this.terms.splice(highestPrecedenceIndex, 1, result)
+      } else {
+        const leftOperand = this.terms[highestPrecedenceIndex - 1]
+        const rightOperand = this.terms[highestPrecedenceIndex + 1]
+
+        if (
+          !isOperand(leftOperand) ||
+          !isOperator(highestPrecedenceElement) || 
+          !isOperand(rightOperand)
+        ) throw new Error('Invalid Expression')
+
+        switch (highestPrecedenceElement) {
+          case '+':
+            result = leftOperand.add(rightOperand)
+            break
+          case '-':
+            result = leftOperand.subtract(rightOperand)
+            break
+          case '*':
+            result = leftOperand.multiply(rightOperand)
+            break
+          case '/':
+            result = leftOperand.divide(rightOperand)
+            break
+          case '^':
+            result = leftOperand.pow(rightOperand)
+            break
+          case '√':
+            result = rightOperand.root(leftOperand)
+            break      
+        }
+        this.terms.splice(highestPrecedenceIndex - 1, 3, result)
       }
 
-      this.terms.splice(operatorIndex - 1, 3, result)
     }
 
     const remainingTerm = this.terms[0]
