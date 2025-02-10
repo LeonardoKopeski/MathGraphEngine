@@ -1,3 +1,5 @@
+import { RationalNumber } from './number'
+
 const operators = {
   '+': {
     precedence: 1
@@ -19,7 +21,7 @@ const operators = {
 
 type OperandTerm = {
   type: 'operand'
-  value: number
+  value: RationalNumber
 }
 
 type OperatorTerm = {
@@ -44,9 +46,12 @@ export class Expression {
         continue
       }
 
-      const operandMatch = remaining.match(/^\d+/)
+      const operandMatch = remaining.match(/^\d+(\.\d+)?/)
       if (operandMatch) {
-        terms.push({ type: 'operand', value: parseInt(operandMatch[0]) })
+        terms.push({
+          type: 'operand',
+          value: RationalNumber.fromFloatString(operandMatch[0])
+        })
         remaining = remaining.slice(operandMatch[0].length)
         continue
       }
@@ -110,15 +115,15 @@ export class Expression {
         rightOperand.type !== 'operand'
       ) throw new Error('Invalid Expression')
 
-      let result: number
+      let result: RationalNumber
       if (operator.subtype === '+') {
-        result = leftOperand.value + rightOperand.value
+        result = leftOperand.value.add(rightOperand.value)
       } else if (operator.subtype === '-') {
-        result = leftOperand.value - rightOperand.value
+        result = leftOperand.value.subtract(rightOperand.value)
       } else if (operator.subtype === '*') {
-        result = leftOperand.value * rightOperand.value
+        result = leftOperand.value.multiply(rightOperand.value)
       } else if (operator.subtype === '/') {
-        result = leftOperand.value / rightOperand.value
+        result = leftOperand.value.divide(rightOperand.value)
       } else {
         throw new Error('Unexpected operator')
       }
